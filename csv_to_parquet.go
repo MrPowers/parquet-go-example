@@ -1,7 +1,10 @@
 package main
 
 import (
-	//"fmt"
+	"bufio"
+	"encoding/csv"
+	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -12,17 +15,12 @@ import (
 )
 
 type Shoe struct {
-	ShoeBrand string `parquet:"name=shoe_brand, type=UTF8, encoding=PLAIN_DICTIONARY"`
-	ShoeName  int32  `parquet:"name=shoe_name, type=UTF8, encoding=PLAIN_DICTIONARY"`
+	ShoeBrand string `parquet:"name=shoe_brand, type=UTF8"`
+	ShoeName  string `parquet:"name=shoe_name, type=UTF8"`
 }
 
 func main() {
 	var err error
-
-	csvfile, err := os.Open("data/shoes.csv")
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	fw, err := local.NewLocalFileWriter("flat.parquet")
 	if err != nil {
@@ -30,23 +28,38 @@ func main() {
 		return
 	}
 
-	//write
+	fmt.Println("Checkpoint 1")
+
 	pw, err := writer.NewParquetWriter(fw, new(Shoe), 2)
 	if err != nil {
 		log.Println("Can't create parquet writer", err)
 		return
 	}
 
-	// set pw options
+	fmt.Println("Checkpoint 2")
+
 	pw.RowGroupSize = 128 * 1024 * 1024 //128M
 	pw.CompressionType = parquet.CompressionCodec_SNAPPY
 
-	// I need to iterate over every row in csvfile
-	// For each row, I need to create a Shoe
-	// then I need to write each shoe with code like this
-	//if err = pw.Write(shoe); err != nil {
-	//log.Println("Write error", err)
-	//}
+	csvFile, _ := os.Open("people.csv")
+	reader := csv.NewReader(bufio.NewReader(csvFile))
+	for {
+		line, error := reader.Read()
+		if error == io.EOF {
+			break
+		} else if error != nil {
+			log.Fatal(error)
+		}
+		shoe := Shoe{
+			ShoeBrand: line[0],
+			ShoeName:  line[1],
+		}
+		if err = pw.Write(shoe); err != nil {
+			log.Println("Write error", err)
+		}
+	}
+
+	fmt.Println("Checkpoint 3")
 
 	if err = pw.WriteStop(); err != nil {
 		log.Println("WriteStop error", err)
