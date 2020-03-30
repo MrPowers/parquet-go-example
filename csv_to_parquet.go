@@ -3,14 +3,12 @@ package main
 import (
 	"bufio"
 	"encoding/csv"
-	"fmt"
 	"io"
 	"log"
 	"os"
 
 	"github.com/xitongsys/parquet-go-source/local"
 	"github.com/xitongsys/parquet-go/parquet"
-	//"github.com/xitongsys/parquet-go/reader"
 	"github.com/xitongsys/parquet-go/writer"
 )
 
@@ -22,13 +20,11 @@ type Shoe struct {
 func main() {
 	var err error
 
-	fw, err := local.NewLocalFileWriter("flat.parquet")
+	fw, err := local.NewLocalFileWriter("tmp/shoes.parquet")
 	if err != nil {
 		log.Println("Can't create local file", err)
 		return
 	}
-
-	fmt.Println("Checkpoint 1")
 
 	pw, err := writer.NewParquetWriter(fw, new(Shoe), 2)
 	if err != nil {
@@ -36,13 +32,12 @@ func main() {
 		return
 	}
 
-	fmt.Println("Checkpoint 2")
-
 	pw.RowGroupSize = 128 * 1024 * 1024 //128M
 	pw.CompressionType = parquet.CompressionCodec_SNAPPY
 
-	csvFile, _ := os.Open("people.csv")
+	csvFile, _ := os.Open("data/shoes.csv")
 	reader := csv.NewReader(bufio.NewReader(csvFile))
+
 	for {
 		line, error := reader.Read()
 		if error == io.EOF {
@@ -58,8 +53,6 @@ func main() {
 			log.Println("Write error", err)
 		}
 	}
-
-	fmt.Println("Checkpoint 3")
 
 	if err = pw.WriteStop(); err != nil {
 		log.Println("WriteStop error", err)
